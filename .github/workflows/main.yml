@@ -1,0 +1,62 @@
+name: Run WhatsApp Bot
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y aria2 p7zip-full ffmpeg
+
+      - name: Install apkeep
+        run: |
+          curl -sL https://github.com/AurimasM/apkeep/releases/latest/download/apkeep-x86_64-unknown-linux-gnu.tar.gz | tar xz
+          chmod +x apkeep
+
+      - name: Install Node.js dependencies
+        run: npm install
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install aiofiles aiohttp beautifulsoup4 cloudscraper curl-cffi fastapi httpx lxml psycopg2-binary python-multipart requests uvicorn trafilatura
+
+      - name: Create necessary directories
+        run: |
+          mkdir -p auth_info_baileys
+          mkdir -p data
+          mkdir -p downloads
+
+      - name: Start API Server
+        run: |
+          cd src/api && python api_server.py &
+          sleep 5
+
+      - name: Run WhatsApp Bot
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DEVELOPER_NUMBERS: ${{ secrets.DEVELOPER_NUMBERS }}
+          BOT_NUMBER: ${{ secrets.BOT_NUMBER }}
+        run: node bot.js
